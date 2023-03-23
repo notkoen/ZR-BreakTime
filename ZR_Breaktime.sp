@@ -1,7 +1,6 @@
 #pragma newdecls required
 #pragma semicolon 1
 
-#include <csgocolors_fix>
 #include <sourcemod>
 #include <zombiereloaded>
 #include <cstrike>
@@ -12,7 +11,7 @@ int g_iTime = -1;
 
 public Plugin myinfo =
 {
-	name = "[ZR|Event] Break Time",
+	name = "[ZR] Break Time",
 	author = "koen", // Inspiration from zaCade's plugin on unloze
 	description = "",
 	version = "",
@@ -26,11 +25,29 @@ public void OnPluginStart()
 	HookEvent("round_start", Event_RoundStart);
 }
 
+public void OnClientPutInServer(int client)
+{
+	SDKHook(client, SDKHook_OnTakeDamage, TakeDamage);
+}
+
+public void OnClientDisconnect(int client)
+{
+	SDKUnhook(client, SDKHook_OnTakeDamage, TakeDamage);
+}
+
+public Action TakeDamage(int victim, int& attacker, int& inflictor, float& damage, int& damagetype, int& weapon, float damageForce[3], float damagePosition[3], int damagecustom)
+{
+	if (g_bBreak)
+		return Plugin_Handled;
+
+	return Plugin_Continue;
+}
+
 public Action cmd_endbreak(int client, int args)
 {
 	if (!g_bBreak)
 	{
-		CPrintToChat(client, "{green}[Break Time] {default}It is currently not break time!");
+		CPrintToChat(client, " \x04[Break Time] \x01It is currently not break time!");
 		return Plugin_Handled;
 	}
 
@@ -44,20 +61,26 @@ public Action cmd_break(int client, int args)
 {
 	if (args < 1)
 	{
-		CPrintToChat(client, "{green}[Break Time] {default}Usage: sm_break <time in seconds>");
+		CPrintToChat(client, " \x04[Break Time] \x01Usage: sm_break <time in seconds>");
+		return Plugin_Handled;
+	}
+
+	if (g_bBreak)
+	{
+		PrintToChat(client, " \x04[Break Time] \x01Break time is enabled already!");
 		return Plugin_Handled;
 	}
 
 	int time = GetCmdArgInt(1);
 	if (time == 0)
 	{
-		CPrintToChat(client, "{green}[Break Time] {default}Error, invalid time input");
+		CPrintToChat(client, " \x04[Break Time] \x01Error, invalid time input");
 		return Plugin_Handled;
 	}
 
 	if (time < 30)
 	{
-		CPrintToChat(client, "{green}[Break Time] {default}Minimum time for break is 30 seconds.");
+		CPrintToChat(client, " \x04[Break Time] \x01Minimum time for break is 30 seconds.");
 		return Plugin_Handled;
 	}
 
@@ -76,9 +99,7 @@ public Action cmd_break(int client, int args)
 public void Event_RoundStart(Handle ev, const char[] name, bool broadcast)
 {
 	if (!g_bNextRound)
-	{
 		return;
-	}
 
 	g_bNextRound = false;
 	g_bBreak = true;
@@ -96,17 +117,11 @@ public Action countdown(Handle timer)
 		Format(outp, sizeof(outp), "%d:%s%d", min, sec < 10 ? "0" : "", sec);
 
 		if (g_iTime < 10)
-		{
 			PrintCenterTextAll("Break time - <font color='#FF0000'>%s</font>", outp);
-		}
 		else if (g_iTime < 30)
-		{
 			PrintCenterTextAll("Break time - <font color='#FFFF00'>%s</font>", outp);
-		}
 		else
-		{
 			PrintCenterTextAll("Break time - <font color='#00FF00'>%s</font>", outp);
-		}
 
 		g_iTime--;
 		return Plugin_Continue;
@@ -121,9 +136,7 @@ public Action countdown(Handle timer)
 public Action ZR_OnClientInfect(int &client, int &attacker, bool &motherInfect, bool &respawnOverride, bool &respawn)
 {
 	if (g_bBreak)
-	{
 		return Plugin_Handled;
-	}
 
 	return Plugin_Continue;
 }
